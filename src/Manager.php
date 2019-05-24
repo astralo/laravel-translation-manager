@@ -246,7 +246,7 @@ class Manager
         }
     }
 
-    public function exportTranslations( $group = null, $json = false )
+    public function exportTranslations( $group = null, $json = false, $flat = true )
     {
         $basePath = $this->app[ 'path.lang' ];
 
@@ -262,9 +262,11 @@ class Manager
                     }
                 }
 
-                $tree = $this->makeTree( Translation::ofTranslatedGroup( $group )
-                                                    ->orderByGroupKeys( array_get( $this->config, 'sort_keys', false ) )
-                                                    ->get() );
+                $translations = Translation::ofTranslatedGroup($group)
+                    ->orderByGroupKeys(array_get($this->config, 'sort_keys', false))
+                    ->get();
+
+                $tree = $this->makeTree($translations, false, $flat);
 
                 foreach ( $tree as $locale => $groups ) {
                     if ( isset( $groups[ $group ] ) ) {
@@ -300,9 +302,12 @@ class Manager
         }
 
         if ( $json ) {
-            $tree = $this->makeTree( Translation::ofTranslatedGroup( self::JSON_GROUP )
-                                                ->orderByGroupKeys( array_get( $this->config, 'sort_keys', false ) )
-                                                ->get(), true );
+
+            $translations = Translation::ofTranslatedGroup(self::JSON_GROUP)
+                ->orderByGroupKeys(array_get($this->config, 'sort_keys', false))
+                ->get();
+
+            $tree = $this->makeTree($translations, true);
 
             foreach ( $tree as $locale => $groups ) {
                 if ( isset( $groups[ self::JSON_GROUP ] ) ) {
@@ -334,16 +339,18 @@ class Manager
         $this->events->dispatch( new TranslationsExportedEvent() );
     }
 
-    protected function makeTree( $translations, $json = false )
+    protected function makeTree( $translations, $json = false, $flat = true )
     {
         $array = [];
         foreach ( $translations as $translation ) {
             if ( $json ) {
                 $this->jsonSet( $array[ $translation->locale ][ $translation->group ], $translation->key,
                     $translation->value );
+            } else if ($flat) {
+                $array[$translation->locale][$translation->group][$translation->key] = $translation->value;
             } else {
-                array_set( $array[ $translation->locale ][ $translation->group ], $translation->key,
-                    $translation->value );
+                array_set($array[$translation->locale][$translation->group], $translation->key,
+                    $translation->value);
             }
         }
 
